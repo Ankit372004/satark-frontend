@@ -4,10 +4,12 @@ import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import { COLORS, GRADIENTS, SHADOWS } from "@/lib/theme";
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield, EyeOff, MapPin, AlertTriangle, FileText, CheckCircle, Upload, ChevronRight, ChevronLeft, Lock, X, Eye, Trash2, Image as ImageIcon, Video, Info } from "lucide-react";
+import { Shield, EyeOff, MapPin, AlertTriangle, FileText, CheckCircle, Upload, ChevronRight, ChevronLeft, Lock, X, Eye, Trash2, Image as ImageIcon, Video, Info, Award, Calendar } from "lucide-react";
+import { LeadCanvasDispatcher } from '@/components/LeadCanvasDispatcher';
+import { LEAD_CATEGORIES } from "@/lib/constants";
 
 // Types
-type FormStep = 1 | 2 | 3 | 4;
+type FormStep = 1 | 2;
 
 export default function ReportPage() {
     const [step, setStep] = useState<FormStep>(1);
@@ -30,6 +32,10 @@ export default function ReportPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [previewFile, setPreviewFile] = useState<File | null>(null);
 
+    // Context Lead State
+    const [referencedLead, setReferencedLead] = useState<any>(null);
+    const [loadingRef, setLoadingRef] = useState(false);
+
     // Fetch Units and check URL params
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -51,6 +57,17 @@ export default function ReportPage() {
 
         if (ref) {
             setFormData(prev => ({ ...prev, description: `Referencing Case ID: ${ref}\n\n` }));
+            // Fetch referenced lead details
+            setLoadingRef(true);
+            fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/leads/public-leads/${ref}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.id) {
+                        setReferencedLead(data);
+                    }
+                })
+                .catch(err => console.warn("Failed to fetch referenced lead", err))
+                .finally(() => setLoadingRef(false));
         }
 
         fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/units/hierarchy`)
@@ -76,7 +93,7 @@ export default function ReportPage() {
         setFormData(prev => ({ ...prev, files: prev.files.filter((_, i) => i !== index) }));
     };
 
-    const handleNext = () => setStep((prev) => (prev < 4 ? (prev + 1 as FormStep) : prev));
+    const handleNext = () => setStep((prev) => (prev < 2 ? (prev + 1 as FormStep) : prev));
     const handleBack = () => setStep((prev) => (prev > 1 ? (prev - 1 as FormStep) : prev));
 
     const handleSubmit = async () => {
@@ -90,9 +107,10 @@ export default function ReportPage() {
             },
             identity_mode: formData.isAnonymous ? 'ANONYMOUS' : 'NAMED',
             is_public: formData.isPublic,
-            jurisdiction_id: formData.unitId || 'u1',
+            jurisdiction_id: formData.unitId || '11111111-1111-1111-1111-111111111111',
             incident_time: formData.incidentTime,
             category_id: formData.categoryId,
+            parent_lead_id: new URLSearchParams(window.location.search).get('ref'), // Proper linking
             details: {}
         };
 
@@ -154,44 +172,42 @@ export default function ReportPage() {
     }
 
     const steps = [
-        { id: 1, label: "Identity", icon: Shield },
-        { id: 2, label: "Location", icon: MapPin },
-        { id: 3, label: "Details", icon: FileText },
-        { id: 4, label: "Evidence", icon: Upload },
+        { id: 1, label: "Identify", icon: Shield },
+        { id: 2, label: "Report", icon: FileText },
     ];
 
     return (
         <main className="min-vh-100 d-flex flex-column" style={{ background: GRADIENTS.bg }}>
             <Header />
 
-            {/* Progress Bar */}
+            {/* Progress Bar (Simplified) */}
             <div className="w-100 py-4 border-bottom shadow-sm" style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(255, 255, 255, 0.7)', backdropFilter: 'blur(10px)' }}>
-                <div className="container" style={{ maxWidth: '800px' }}>
-                    <div className="position-relative d-flex justify-content-between">
+                <div className="container" style={{ maxWidth: '600px' }}>
+                    <div className="position-relative d-flex justify-content-between align-items-center">
                         {/* Line */}
                         <div className="position-absolute top-50 start-0 w-100 rounded" style={{ height: '3px', background: COLORS.border, zIndex: 0 }}>
                             <motion.div
                                 className="h-100 rounded"
                                 initial={{ width: 0 }}
-                                animate={{ width: `${((step - 1) / 3) * 100}%` }}
+                                animate={{ width: `${((step - 1) / 1) * 100}%` }}
                                 style={{ background: GRADIENTS.header }}
                             />
                         </div>
 
                         {steps.map((s) => (
-                            <div key={s.id} className="d-flex flex-column align-items-center position-relative z-1" style={{ width: '80px' }}>
+                            <div key={s.id} className="d-flex flex-column align-items-center position-relative z-1" style={{ width: '100px', cursor: 'pointer' }} onClick={() => step > s.id && setStep(s.id as FormStep)}>
                                 <motion.div
                                     animate={{
                                         backgroundColor: step >= s.id ? COLORS.navyBlue : 'white',
                                         borderColor: step >= s.id ? COLORS.navyBlue : COLORS.border,
                                         color: step >= s.id ? 'white' : COLORS.textSecondary
                                     }}
-                                    className="rounded-circle d-flex align-items-center justify-content-center border"
-                                    style={{ width: '40px', height: '40px', borderWidth: '2px' }}
+                                    className="rounded-circle d-flex align-items-center justify-content-center border shadow-sm"
+                                    style={{ width: '48px', height: '48px', borderWidth: '2px' }}
                                 >
-                                    <s.icon size={18} />
+                                    <s.icon size={20} />
                                 </motion.div>
-                                <span className="small mt-2 fw-medium" style={{ color: step >= s.id ? COLORS.navyBlue : COLORS.textSecondary, fontSize: '12px' }}>{s.label}</span>
+                                <span className="small mt-2 fw-bold" style={{ color: step >= s.id ? COLORS.navyBlue : COLORS.textSecondary }}>{s.label}</span>
                             </div>
                         ))}
                     </div>
@@ -199,8 +215,10 @@ export default function ReportPage() {
             </div>
 
             <div className="flex-grow-1 container my-5">
-                <div className="row justify-content-center">
-                    <div className="col-lg-7">
+                <div className="row justify-content-center g-4">
+
+                    {/* LEFT: FORM SECTION - 50% WIDTH IF REF EXISTS */}
+                    <div className={referencedLead ? "col-lg-6" : "col-lg-7"}>
                         {/* Security Notice */}
                         <div className="mb-4 p-3 rounded-3 d-flex align-items-center gap-3 bg-white shadow-sm border-start border-4 border-success">
                             <Lock size={20} className="text-success" />
@@ -216,7 +234,7 @@ export default function ReportPage() {
                             animate={{ y: 0, opacity: 1 }}
                             className="card border-0 shadow-lg rounded-4 overflow-hidden"
                             style={{
-                                background: 'rgba(255, 255, 255, 0.8)',
+                                background: 'rgba(255, 255, 255, 0.95)',
                                 backdropFilter: 'blur(20px)',
                                 border: '1px solid rgba(255, 255, 255, 0.3)',
                                 boxShadow: SHADOWS.lg
@@ -236,7 +254,7 @@ export default function ReportPage() {
                                                     className="p-4 rounded-3 cursor-pointer transition-all position-relative overflow-hidden"
                                                     style={{
                                                         background: formData.isAnonymous ? 'rgba(0, 0, 128, 0.05)' : 'white',
-                                                        border: `1px solid ${formData.isAnonymous ? COLORS.navyBlue : COLORS.border}`
+                                                        border: `2px solid ${formData.isAnonymous ? COLORS.navyBlue : COLORS.border}`
                                                     }}
                                                 >
                                                     <div className="d-flex align-items-center gap-3">
@@ -247,7 +265,7 @@ export default function ReportPage() {
                                                             <h5 className="fw-bold mb-1 text-dark">Anonymous Reporting</h5>
                                                             <p className="small mb-0 text-muted">Identity hidden. No rewards applicable.</p>
                                                         </div>
-                                                        {formData.isAnonymous && <CheckCircle className="ms-auto" style={{ color: COLORS.navyBlue }} />}
+                                                        {formData.isAnonymous && <CheckCircle className="ms-auto text-success" size={24} />}
                                                     </div>
                                                 </div>
 
@@ -257,7 +275,7 @@ export default function ReportPage() {
                                                     className="p-4 rounded-3 cursor-pointer transition-all"
                                                     style={{
                                                         background: !formData.isAnonymous ? 'rgba(255, 215, 0, 0.1)' : 'white',
-                                                        border: `1px solid ${!formData.isAnonymous ? COLORS.golden : COLORS.border}`
+                                                        border: `2px solid ${!formData.isAnonymous ? COLORS.golden : COLORS.border}`
                                                     }}
                                                 >
                                                     <div className="d-flex align-items-center gap-3">
@@ -268,7 +286,7 @@ export default function ReportPage() {
                                                             <h5 className="fw-bold mb-1 text-dark">Confidential Reporting</h5>
                                                             <p className="small mb-0 text-muted">Identity protected. <span className="text-warning fw-bold">Eligible for rewards.</span></p>
                                                         </div>
-                                                        {!formData.isAnonymous && <CheckCircle className="ms-auto" style={{ color: COLORS.golden }} />}
+                                                        {!formData.isAnonymous && <CheckCircle className="ms-auto text-warning" size={24} />}
                                                     </div>
                                                 </div>
                                             </div>
@@ -300,125 +318,109 @@ export default function ReportPage() {
 
                                     {step === 2 && (
                                         <motion.div key="step2" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}>
-                                            <h3 className="fw-bold mb-1 text-dark">Location Details</h3>
-                                            <p className="mb-4 text-muted">Where did the incident occur?</p>
+                                            <h3 className="fw-bold mb-1 text-dark">Report Details</h3>
+                                            <p className="mb-4 text-muted">Please provide accurate information.</p>
 
-                                            <div className="mb-4">
-                                                <label className="small fw-bold text-uppercase mb-2 text-muted">Jurisdiction</label>
-                                                <select
-                                                    className="form-select form-select-lg"
-                                                    value={formData.unitId}
-                                                    onChange={e => setFormData({ ...formData, unitId: e.target.value })}
-                                                >
-                                                    <option value="">Select Jurisdiction</option>
-                                                    <optgroup label="Districts">
-                                                        {units.districts?.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                                                    </optgroup>
-                                                    <optgroup label="Police Stations">
-                                                        {units.policeStations?.map((ps: any) => <option key={ps.id} value={ps.id}>{ps.name}</option>)}
-                                                    </optgroup>
-                                                </select>
-                                            </div>
-
-                                            <div className="p-3 rounded mb-3 d-flex align-items-center gap-3 bg-light">
-                                                <Info size={20} className="text-info" />
-                                                <small className="text-muted">Map pinning is currently disabled. Please describe the location below.</small>
-                                            </div>
-                                        </motion.div>
-                                    )}
-
-                                    {step === 3 && (
-                                        <motion.div key="step3" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}>
-                                            <h3 className="fw-bold mb-1 text-dark">Incident Details</h3>
-                                            <p className="mb-4 text-muted">Describe the event accurately.</p>
-
-                                            <div className="mb-4">
-                                                <label className="small fw-bold text-uppercase mb-2 text-muted">Report Title</label>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Briefly state the subject (e.g. Red Bike Theft at CP)"
-                                                    className="form-control form-control-lg"
-                                                    value={formData.title}
-                                                    onChange={e => setFormData({ ...formData, title: e.target.value })}
-                                                />
-                                            </div>
-
-                                            <div className="row g-3 mb-4">
-                                                <div className="col-md-6">
-                                                    <label className="small fw-bold text-uppercase mb-2 text-muted">Date & Time</label>
+                                            <div className="row g-3 mb-3">
+                                                <div className="col-12">
+                                                    <label className="small fw-bold text-uppercase mb-2 text-muted">Subject / Title</label>
                                                     <input
-                                                        type="datetime-local"
+                                                        type="text"
+                                                        placeholder="e.g. Suspicious activity at Metro Station"
                                                         className="form-control form-control-lg"
-                                                        onChange={e => setFormData({ ...formData, incidentTime: e.target.value })}
+                                                        value={formData.title}
+                                                        onChange={e => setFormData({ ...formData, title: e.target.value })}
                                                     />
                                                 </div>
                                                 <div className="col-md-6">
+                                                    <label className="small fw-bold text-uppercase mb-2 text-muted">Incident Date</label>
+                                                    <input
+                                                        type="datetime-local"
+                                                        className="form-control"
+                                                        onChange={e => setFormData({ ...formData, incidentTime: e.target.value })}
+                                                    />
+                                                </div>
+
+                                                <div className="col-md-6">
                                                     <label className="small fw-bold text-uppercase mb-2 text-muted">Category</label>
                                                     <select
-                                                        className="form-select form-select-lg"
+                                                        className="form-select"
+                                                        value={formData.categoryId}
                                                         onChange={e => setFormData({ ...formData, categoryId: e.target.value })}
                                                     >
                                                         <option value="">Select Category</option>
-                                                        <option value="1">Theft / Burglary</option>
-                                                        <option value="4">Cyber Crime</option>
-                                                        <option value="6">Terrorism</option>
-                                                        <option value="5">Narcotics</option>
+                                                        {LEAD_CATEGORIES.map(cat => (
+                                                            <option key={cat.id} value={cat.id}>{cat.label}</option>
+                                                        ))}
                                                     </select>
+                                                </div>
+                                                <div className="col-12">
+                                                    <label className="small fw-bold text-uppercase mb-2 text-muted">Location</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Enter location (e.g. Connaught Place, Block A)"
+                                                        className="form-control"
+                                                        value={formData.unitId === 'u1' ? '' : formData.unitId}
+                                                        onChange={e => setFormData({ ...formData, unitId: e.target.value })}
+                                                    />
                                                 </div>
                                             </div>
 
-                                            <div className="mb-3">
+                                            <div className="mb-4">
                                                 <label className="small fw-bold text-uppercase mb-2 text-muted">Detailed Description</label>
                                                 <textarea
-                                                    className="form-control p-3"
-                                                    rows={6}
-                                                    placeholder="Describe the incident. Include names, vehicle numbers, physical descriptions..."
+                                                    className="form-control p-3 bg-light"
+                                                    rows={5}
+                                                    placeholder="Describe the incident details..."
                                                     value={formData.description}
                                                     onChange={e => setFormData({ ...formData, description: e.target.value })}
                                                 ></textarea>
                                             </div>
-                                        </motion.div>
-                                    )}
 
-                                    {step === 4 && (
-                                        <motion.div key="step4" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}>
-                                            <div className="text-center mb-5">
-                                                <h3 className="fw-bold mb-1 text-dark">Upload Evidence</h3>
-                                                <p className="text-muted">Drag and drop images or videos.</p>
-                                            </div>
-
-                                            <div className="position-relative p-5 rounded-4 text-center border-dashed mb-4 bg-light"
-                                                style={{ border: `2px dashed ${COLORS.navyBlue}` }}>
-                                                <input
-                                                    type="file"
-                                                    multiple
-                                                    accept="image/*,video/*"
-                                                    className="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer"
-                                                    onChange={handleFileChange}
-                                                />
-                                                <Upload size={48} style={{ color: COLORS.navyBlue }} className="mb-3" />
-                                                <p className="fw-bold mb-1 text-dark">Click to Upload or Drag Files</p>
-                                                <p className="small mb-0 text-muted">Max 50MB per file. Securely hashed.</p>
-                                            </div>
-
-                                            {formData.files.length > 0 && (
-                                                <div className="row g-3">
-                                                    {formData.files.map((f, i) => (
-                                                        <div key={i} className="col-12 col-sm-6">
-                                                            <div className="d-flex align-items-center gap-3 p-2 rounded-3 border bg-white">
-                                                                <div className="rounded d-flex align-items-center justify-content-center bg-light" style={{ width: '40px', height: '40px' }}>
-                                                                    {f.type.startsWith('image') ? <ImageIcon size={20} /> : <Video size={20} />}
-                                                                </div>
-                                                                <div className="flex-grow-1 overflow-hidden">
-                                                                    <p className="small mb-0 text-truncate fw-bold">{f.name}</p>
-                                                                    <p className="small mb-0 text-muted" style={{ fontSize: '10px' }}>{(f.size / 1024 / 1024).toFixed(2)} MB</p>
-                                                                </div>
-                                                                <button onClick={() => removeFile(i)} className="btn btn-sm btn-link text-danger"><Trash2 size={16} /></button>
-                                                            </div>
+                                            {/* Merged Evidence Section */}
+                                            <div className="mb-4">
+                                                <label className="small fw-bold text-uppercase mb-2 text-muted">Evidence & Media</label>
+                                                <div className="position-relative p-4 rounded-4 text-center border-dashed bg-white transition-all hover-shadow"
+                                                    style={{ border: `2px dashed ${COLORS.navyBlue}` }}>
+                                                    <input
+                                                        type="file"
+                                                        multiple
+                                                        accept="image/*,video/*"
+                                                        className="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer"
+                                                        onChange={handleFileChange}
+                                                    />
+                                                    <div className="d-flex flex-column align-items-center">
+                                                        <div className="p-3 rounded-circle bg-primary-subtle text-primary mb-3">
+                                                            <Upload size={24} />
                                                         </div>
-                                                    ))}
+                                                        <p className="fw-bold mb-1 text-dark">Click to Upload or Drag Photos/Videos</p>
+                                                        <p className="small mb-0 text-muted">Supported: JPG, PNG, MP4 (Max 50MB)</p>
+                                                    </div>
                                                 </div>
-                                            )}
+
+                                                {/* File Previews */}
+                                                {formData.files.length > 0 && (
+                                                    <div className="row g-2 mt-3">
+                                                        {formData.files.map((f, i) => (
+                                                            <div key={i} className="col-12">
+                                                                <div className="d-flex align-items-center gap-3 p-2 rounded-3 border bg-white shadow-sm">
+                                                                    <div className="rounded d-flex align-items-center justify-content-center bg-dark text-white" style={{ width: '48px', height: '48px', cursor: 'pointer' }} onClick={() => setPreviewFile(f)}>
+                                                                        {f.type.startsWith('image') ? <ImageIcon size={20} /> : <Video size={20} />}
+                                                                        <div className="position-absolute opacity-0 hover-opacity-100 bg-black w-100 h-100 d-flex align-items-center justify-content-center bg-opacity-50 transition-all rounded">
+                                                                            <Eye size={16} />
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex-grow-1 overflow-hidden" style={{ cursor: 'pointer' }} onClick={() => setPreviewFile(f)}>
+                                                                        <p className="small mb-0 text-truncate fw-bold text-dark">{f.name}</p>
+                                                                        <p className="small mb-0 text-muted" style={{ fontSize: '10px' }}>{(f.size / 1024 / 1024).toFixed(2)} MB</p>
+                                                                    </div>
+                                                                    <button onClick={() => removeFile(i)} className="btn btn-sm btn-light text-danger rounded-circle p-2"><Trash2 size={16} /></button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
@@ -426,15 +428,18 @@ export default function ReportPage() {
 
                             {/* Footer Navigation */}
                             <div className="p-4 d-flex justify-content-between align-items-center bg-light border-top">
-                                <button
-                                    onClick={handleBack}
-                                    disabled={step === 1}
-                                    className="btn btn-link text-decoration-none d-flex align-items-center gap-2 text-muted"
-                                >
-                                    <ChevronLeft size={20} /> Previous
-                                </button>
+                                {step === 1 ? (
+                                    <div className="small text-muted"><Info size={14} className="me-1" /> Select a mode to proceed</div>
+                                ) : (
+                                    <button
+                                        onClick={handleBack}
+                                        className="btn btn-link text-decoration-none d-flex align-items-center gap-2 text-muted"
+                                    >
+                                        <ChevronLeft size={20} /> Back
+                                    </button>
+                                )}
 
-                                {step < 4 ? (
+                                {step < 2 ? (
                                     <button
                                         onClick={handleNext}
                                         className="btn px-5 py-2 rounded-pill fw-bold text-white d-flex align-items-center gap-2"
@@ -455,6 +460,41 @@ export default function ReportPage() {
                             </div>
                         </motion.div>
                     </div>
+
+                    {/* RIGHT: CONTEXT PANEL - 50% WIDTH IF REF EXISTS */}
+                    {referencedLead && (
+                        <div className="col-lg-6 ps-lg-4">
+                            <motion.div
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                className="sticky-top"
+                                style={{ top: '100px' }}
+                            >
+                                <div className="card border-0 shadow-lg rounded-4 overflow-hidden h-100" style={{ background: '#f8f9fa' }}>
+
+                                    {/* Compact Premium Header (Match DetailCanvas) */}
+                                    <div className="p-3 border-bottom d-flex justify-content-between align-items-center bg-dark text-white">
+                                        <div className="d-flex align-items-center gap-3">
+                                            <div className="p-2 rounded bg-danger text-white"><Shield size={20} /></div>
+                                            <div>
+                                                <h5 className="fw-bold mb-0 text-truncate" style={{ maxWidth: '300px' }}>{referencedLead.title}</h5>
+                                                <div className="d-flex align-items-center gap-2">
+                                                    <span className="opacity-60" style={{ fontSize: '10px' }}>ID: {referencedLead.token || 'REF-' + referencedLead.id}</span>
+                                                    <span className="badge bg-secondary-subtle text-light border border-light border-opacity-25" style={{ fontSize: '8px' }}>SECRET // NOFORN</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Reusable Detail View */}
+                                    <div style={{ height: 'calc(100vh - 140px)', position: 'relative' }}>
+                                        <LeadCanvasDispatcher lead={referencedLead} />
+                                    </div>
+
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
                 </div>
             </div>
 

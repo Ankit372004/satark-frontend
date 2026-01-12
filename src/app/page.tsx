@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 
+import { LargeSearchBar } from '@/components/LargeSearchBar';
 import { COLORS, GRADIENTS, SHADOWS } from '@/lib/theme';
 
 export default function Home() {
@@ -60,58 +61,99 @@ export default function Home() {
     const fetchLeads = async () => {
       setLoading(true);
       try {
-        let priorityParam = activeTab === 'all' || activeTab === 'myfeed' || activeTab === 'popular' || activeTab === 'trending' ? '' : activeTab.toUpperCase();
-        let searchParam = debouncedSearch;
-        let sortParam = 'newest';
-        if (activeTab === 'popular') sortParam = 'popular';
-        if (activeTab === 'trending') sortParam = 'trending';
-
-        if (activeTab === 'myfeed') {
-          searchParam = 'Appeal:';
-          priorityParam = '';
-        } else if (activeTab === 'traffic') {
-          searchParam = 'Traffic:';
-          priorityParam = '';
-        } else if (activeTab === 'sos') {
-          searchParam = 'SOS:';
-          priorityParam = '';
-        }
-
         const url = new URL(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/leads/public-leads`);
         url.searchParams.append('limit', '10');
         url.searchParams.append('offset', (page * 10).toString());
-        url.searchParams.append('priority', priorityParam);
-        url.searchParams.append('search', searchParam);
+
+        // Default constraints
+        let priorityParam = '';
+        let statusParam = '';
+        let searchParam = debouncedSearch;
+        let sortParam = 'newest';
+
+        // Filter Logic Mapping
+        switch (activeTab) {
+          case 'all':
+            break;
+          case 'myfeed':
+            sortParam = 'trending';
+            // Live feed logic - maybe prioritize recent updates or appeals?
+            // Current backend logic for 'Appeal:' search for 'myfeed' was a bit specific.
+            // Let's keep it broader or use 'trending'.
+            break;
+          case 'missing':
+            statusParam = 'MISSING';
+            break;
+          case 'wanted':
+            statusParam = 'WANTED';
+            break;
+          case 'alert':
+            statusParam = 'ALERT';
+            break;
+          case 'appeal':
+            searchParam = searchParam || 'Appeal'; // If no user search, filter by Appeal
+            break;
+          case 'critical':
+            priorityParam = 'CRITICAL';
+            break;
+          case 'rewards':
+            priorityParam = 'REWARDS';
+            break;
+          case 'popular':
+            sortParam = 'popular';
+            break;
+          case 'trending':
+            sortParam = 'trending';
+            break;
+          default:
+            // Fallback for custom tabs or if priority is passed directly
+            priorityParam = activeTab.toUpperCase();
+        }
+
+        if (priorityParam) url.searchParams.append('priority', priorityParam);
+        if (statusParam) url.searchParams.append('status', statusParam);
+        if (searchParam) url.searchParams.append('search', searchParam);
         url.searchParams.append('sort', sortParam);
+
         if (selectedCategory) url.searchParams.append('category', selectedCategory);
         if (selectedJurisdiction) url.searchParams.append('jurisdiction', selectedJurisdiction);
 
         const res = await fetch(url.toString());
+
+        if (!res.ok) {
+          console.error(`API Error: ${res.status} ${res.statusText}`);
+          setHasMore(false);
+          return;
+        }
+
         const data = await res.json();
 
-        if (!Array.isArray(data)) {
+        // Handle if data is wrapped in an object like { leads: [...] }
+        const leadsData = Array.isArray(data) ? data : (data.leads || []);
+
+        if (!Array.isArray(leadsData)) {
           console.error("Expected array but received:", data);
           setHasMore(false);
           return;
         }
 
-        if (data.length < 10) {
+        if (leadsData.length < 10) {
           setHasMore(false);
         }
 
         setLeads(prev => {
-          const combined = [...prev, ...data];
+          const combined = [...prev, ...leadsData];
           // Unique by ID
           const uniqueLeads = Array.from(new Map(combined.map(item => [item.id, item])).values());
 
           // Inject mock data enhancements
           return uniqueLeads.map((l: any, idx) => ({
             ...l,
-            responseCount: Math.floor(Math.random() * 50) + 10,
+            responseCount: l.responseCount || 0,
             // Pin the first critical or appeal lead in the first page
             isPinned: idx === 0 && page === 0 && (l.priority === 'CRITICAL' || l.title.includes('Appeal')),
-            // Inject new assets for demo
-            image_url: idx === 0 ? "/api/placeholder/400/320" : (idx === 1 ? "/api/placeholder/400/320" : l.image_url)
+            // Use real data or fallbacks if missing (but prefer real)
+            reward: l.reward_amount || l.reward || null
           }));
         });
       } catch (err) {
@@ -123,6 +165,25 @@ export default function Home() {
 
     fetchLeads();
   }, [page, activeTab, debouncedSearch]);
+
+  // Auto-Scroll for Live Feed
+  useEffect(() => {
+    let scrollInterval: NodeJS.Timeout;
+
+    if (activeTab === 'myfeed') {
+      scrollInterval = setInterval(() => {
+        // Scroll down slightly if not at the bottom
+        if ((window.innerHeight + window.scrollY) < document.body.offsetHeight) {
+          window.scrollBy({ top: 1, behavior: 'instant' });
+          // 'instant' prevents smooth scroll jitter in intervals
+        }
+      }, 30); // Speed control: 30ms per 1px
+    }
+
+    return () => {
+      if (scrollInterval) clearInterval(scrollInterval);
+    };
+  }, [activeTab]);
 
   return (
     <div className="min-vh-100" style={{ background: GRADIENTS.bg }}>
@@ -147,6 +208,7 @@ export default function Home() {
           <div className="col-lg-7 px-lg-4">
 
             {/* Create Post / Report Bar (Reddit Style) */}
+            {/* Create Post / Report Bar (Reddit Style) - COMMENTED OUT AS PER REQUEST
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -179,50 +241,70 @@ export default function Home() {
                 </button>
               </div>
             </motion.div>
+            */}
+
+            {/* Search Bar - Prominent */}
+            <LargeSearchBar
+              value={searchQuery}
+              onChange={(val) => setSearchQuery(val)}
+            />
 
             {/* Filter Bar */}
-            <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
-              <div className="d-flex align-items-center gap-2">
+            <div
+              className="d-flex align-items-center justify-content-between mb-4 sticky-top pt-2 pb-3 z-10"
+              style={{
+                background: 'rgba(241, 245, 249, 0.95)',
+                backdropFilter: 'blur(12px)',
+                margin: '0 -1rem',
+                padding: '0 1rem',
+                top: '76px' // Stick below the ~80px header
+              }}
+            >
+              <div className="d-flex align-items-center gap-2 overflow-auto no-scrollbar py-1 w-100 justify-content-start">
                 <button
-                  className={`btn btn-sm rounded-pill fw-bold ${activeTab === 'myfeed' ? 'btn-primary' : 'btn-light text-muted'}`}
-                  onClick={() => setActiveTab('myfeed')}
-                >
-                  My Feed (Appeals)
-                </button>
-                <button
-                  className={`btn btn-sm rounded-pill fw-bold ${activeTab === 'all' ? 'btn-dark' : 'btn-light text-muted'}`}
+                  className={`btn btn-sm rounded-pill px-4 py-2 fw-bold transition-all ${activeTab === 'all' ? 'bg-dark text-white shadow-lg' : 'bg-white text-muted border border-slate-200'}`}
                   onClick={() => setActiveTab('all')}
+                  style={{ minWidth: 'fit-content' }}
                 >
-                  All Posts
+                  All Intel
+                </button>
+
+                <div className="vr opacity-25 mx-1"></div>
+
+                <button
+                  className={`btn btn-sm rounded-pill px-4 py-2 fw-bold transition-all ${activeTab === 'missing' ? 'bg-info text-white shadow-lg' : 'bg-white text-muted border border-slate-200'}`}
+                  onClick={() => setActiveTab('missing')}
+                  style={{ minWidth: 'fit-content' }}
+                >
+                  Missing Persons
                 </button>
                 <button
-                  className={`btn btn-sm rounded-pill fw-bold ${activeTab === 'critical' ? 'btn-danger text-white' : 'btn-light text-muted'}`}
-                  onClick={() => setActiveTab('critical')}
+                  className={`btn btn-sm rounded-pill px-4 py-2 fw-bold transition-all ${activeTab === 'wanted' ? 'bg-danger text-white shadow-lg' : 'bg-white text-muted border border-slate-200'}`}
+                  onClick={() => setActiveTab('wanted')}
+                  style={{ minWidth: 'fit-content' }}
                 >
-                  Critical
+                  Wanted
                 </button>
                 <button
-                  className={`btn btn-sm rounded-pill fw-bold ${activeTab === 'rewards' ? 'btn-warning text-dark' : 'btn-light text-muted'}`}
-                  onClick={() => setActiveTab('rewards')}
+                  className={`btn btn-sm rounded-pill px-4 py-2 fw-bold transition-all ${activeTab === 'appeal' ? 'bg-indigo text-white shadow-lg' : 'bg-white text-muted border border-slate-200'}`}
+                  onClick={() => setActiveTab('appeal')}
+                  style={{ backgroundColor: activeTab === 'appeal' ? '#6610f2' : undefined, minWidth: 'fit-content' }}
                 >
-                  <Award size={14} className="me-1" /> Rewards
+                  Appeals
                 </button>
                 <button
-                  className={`btn btn-sm rounded-pill fw-bold ${activeTab === 'traffic' ? 'btn-info text-dark' : 'btn-light text-muted'}`}
-                  onClick={() => setActiveTab('traffic')}
+                  className={`btn btn-sm rounded-pill px-4 py-2 fw-bold transition-all ${activeTab === 'alert' ? 'bg-warning text-dark shadow-lg' : 'bg-white text-muted border border-slate-200'}`}
+                  onClick={() => setActiveTab('alert')}
+                  style={{ minWidth: 'fit-content' }}
                 >
-                  Traffic
-                </button>
-                <button
-                  className={`btn btn-sm rounded-pill fw-bold ${activeTab === 'sos' ? 'btn-dark text-warning' : 'btn-light text-muted'}`}
-                  onClick={() => setActiveTab('sos')}
-                >
-                  🚨 SOS
+                  <AlertCircle size={14} className="me-2" /> Alerts
                 </button>
               </div>
 
-              <div className="d-flex">
-                <button className="btn btn-link text-muted p-1"><Filter size={18} /></button>
+              <div className="d-flex ms-2">
+                <button className="btn btn-white rounded-circle shadow-sm border border-slate-200 p-2 text-muted hover-scale">
+                  <Filter size={18} />
+                </button>
               </div>
             </div>
 
@@ -230,7 +312,7 @@ export default function Home() {
             {leads.some(l => l.isPinned) && (
               <div className="mb-3 d-flex align-items-center gap-2">
                 <div className="px-2 py-1 bg-warning text-dark fw-bold rounded" style={{ fontSize: '10px' }}>★ FEATURED</div>
-                <h6 className="mb-0 fw-bold text-muted text-uppercase" style={{ letterSpacing: '1px', fontSize: '11px' }}>Priority Intelligence Dossier</h6>
+                <h6 className="mb-0 fw-bold text-muted text-uppercase" style={{ letterSpacing: '1px', fontSize: '11px' }}>OFFICIAL INTELLIGENCE DOSSIER</h6>
               </div>
             )}
 
@@ -270,13 +352,13 @@ export default function Home() {
 
           {/* RIGHT SIDEBAR - Impact & Stats */}
           <div className="col-lg-3 ps-lg-4 d-none d-lg-block">
-            <RightSidebar />
+            <RightSidebar onLeadSelect={setSelectedLead} />
           </div>
 
         </div>
-      </main>
+      </main >
 
       <DetailCanvas leadId={selectedLead?.id} onClose={() => setSelectedLead(null)} />
-    </div>
+    </div >
   );
 }

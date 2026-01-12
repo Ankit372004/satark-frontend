@@ -4,6 +4,7 @@ import React from 'react';
 import { Home, Zap, Shield, Hash, MapPin, Users, Award, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { COLORS } from '@/lib/theme';
+import { LEAD_CATEGORIES } from '@/lib/constants';
 
 interface SidebarProps {
     activeTab: string;
@@ -19,25 +20,55 @@ export default function LeftSidebar({ activeTab, onTabChange, activeCategory, on
         { icon: Home, label: "Home", id: "all" },
         { icon: Zap, label: "Popular", id: "popular" },
         { icon: TrendingUp, label: "Trending", id: "trending" },
+        { icon: Award, label: "High Rewards", id: "rewards" }, // Added High Rewards
     ];
 
-    const categories = [
-        { icon: Shield, label: "Terrorism / Threats", color: COLORS.wineRed, id: "1" },
-        { icon: Zap, label: "Drug Rackets", color: '#8800ff', id: "2" },
-        { icon: Hash, label: "Money Laundering", color: '#28a745', id: "3" },
-        { icon: Shield, label: "Corruption", color: '#fd7e14', id: "4" },
-        { icon: Users, label: "Human Trafficking", color: '#dc3545', id: "5" },
-        { icon: Hash, label: "Cyber Crime", color: '#007bff', id: "6" },
-        { icon: Shield, label: "Organized Crime", color: '#6c757d', id: "7" },
-        { icon: Users, label: "Missing Persons", color: '#6610f2', id: "8" },
-        { icon: Award, label: "Reward Eligible", color: COLORS.golden, id: "9" },
-        { icon: MapPin, label: "Hotspots", color: '#e83e8c', id: "10" },
-    ];
+    const CATEGORY_STYLES: Record<string, { icon: any, color: string }> = {
+        terrorism: { icon: Shield, color: COLORS.wineRed },
+        kidnapping: { icon: Users, color: '#6610f2' },
+        cyber_crime: { icon: Hash, color: '#007bff' },
+        organized_crime: { icon: Shield, color: '#6c757d' },
+        drug_rackets: { icon: Zap, color: '#8800ff' },
+        money_laundering: { icon: Hash, color: '#28a745' },
+        corruption: { icon: Shield, color: '#fd7e14' },
+        parental_kidnappings: { icon: Users, color: '#dc3545' },
+        human_trafficking: { icon: Users, color: '#e83e8c' },
+        seeking_info: { icon: Award, color: COLORS.golden },
+        other: { icon: Hash, color: '#6c757d' }
+    };
+
+    const categories = LEAD_CATEGORIES.map(cat => ({
+        id: cat.id,
+        label: cat.label,
+        icon: CATEGORY_STYLES[cat.id]?.icon || Hash, // Safe fallback
+        color: CATEGORY_STYLES[cat.id]?.color || '#6c757d'
+    }));
 
     const jurisdictions = [
-        { label: "New Delhi" },
-        { label: "South Delhi" },
-        { label: "Central Delhi" },
+        { label: "Central District" },
+        { label: "Crime Branch" },
+        { label: "Dwarka District" },
+        { label: "East District" },
+        { label: "Economic Offences Wing" },
+        { label: "IGI Airport" },
+        { label: "Licensing Unit" },
+        { label: "Metro" },
+        { label: "New Delhi District" },
+        { label: "North District" },
+        { label: "North-East District" },
+        { label: "North-West District" },
+        { label: "Outer District" },
+        { label: "Outer-North District" },
+        { label: "Railways" },
+        { label: "Rohini District" },
+        { label: "Shahdara District" },
+        { label: "South District" },
+        { label: "South-East District" },
+        { label: "South-West District" },
+        { label: "Special Cell" },
+        { label: "Traffic Unit" },
+        { label: "Vigilance" },
+        { label: "West District" },
     ];
 
     return (

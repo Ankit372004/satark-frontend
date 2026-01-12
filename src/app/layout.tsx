@@ -15,13 +15,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="stylesheet" href="/assets/css/ux4g.css" />
         <link rel="stylesheet" href="/assets/css/ux4g-utilities.css" />
         <link rel="stylesheet" href="/assets/css/ux4g-icons.css" />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <I18nProvider>
           {children}
         </I18nProvider>
