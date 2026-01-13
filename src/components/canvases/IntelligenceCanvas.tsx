@@ -8,6 +8,7 @@ import {
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { motion, AnimatePresence } from 'framer-motion';
+import QRCode from 'react-qr-code';
 
 interface IntelligenceCanvasProps {
     data: any;
@@ -35,12 +36,18 @@ export const IntelligenceCanvas: React.FC<IntelligenceCanvasProps> = ({ data }) 
     }, [data]);
 
     const [activeTab, setActiveTab] = useState<'details' | 'evidence' | 'analysis'>('details');
-    const photoUrl = data.image_url || null;
+    const [imgError, setImgError] = useState(false);
+    const mediaItems = data.media || [];
+    const photoUrl = (!imgError && data.image_url) ? data.image_url :
+        (mediaItems.find((m: any) => m.file_type?.toLowerCase().includes('image'))?.file_path || null);
+
     const isPoliceRequest = data.status === 'INFO_SEEKING';
     const status = data.status || 'SUBMITTED';
 
     return (
-        <div ref={printRef} className="bg-white h-100 d-flex flex-column font-sans text-dark overflow-hidden">
+        <div ref={printRef} className="bg-white h-100 d-flex flex-column font-sans text-dark">
+            {/* ... (Header remains same, skipping for brevity in replacement, focusing on content) */}
+
             {/* HEADER - DARK BLUE TO WINE RED GRADIENT */}
             <div className="text-white px-4 py-3 d-flex align-items-center justify-content-between shadow-sm position-relative overflow-hidden"
                 style={{
@@ -91,14 +98,18 @@ export const IntelligenceCanvas: React.FC<IntelligenceCanvasProps> = ({ data }) 
             </div>
 
             {/* CONTENT */}
-            <div className="flex-grow-1 overflow-y-auto bg-slate-50 p-4">
+            <div className="flex-grow-1 overflow-y-auto bg-slate-50 p-4 has-cool-scrollbar">
                 <div className="row g-4 h-100">
                     {/* LEFT: VISUAL / QUICK INFO */}
                     <div className="col-lg-4">
                         <div className="bg-white p-3 border rounded shadow-sm h-100 d-flex flex-column">
                             <div className="ratio ratio-4x3 bg-slate-900 border mb-3 position-relative overflow-hidden rounded-1">
                                 {photoUrl ? (
-                                    <img src={photoUrl} className="object-fit-cover w-100 h-100 opacity-90" />
+                                    <img
+                                        src={photoUrl}
+                                        className="object-fit-cover w-100 h-100 opacity-90"
+                                        onError={() => setImgError(true)}
+                                    />
                                 ) : (
                                     <div className="d-flex align-items-center justify-content-center text-white/30 flex-column h-100 w-100">
                                         <div className="border border-white/20 rounded-circle p-3 mb-2">
@@ -118,6 +129,18 @@ export const IntelligenceCanvas: React.FC<IntelligenceCanvasProps> = ({ data }) 
                                 {data.title}
                             </h5>
 
+                            {/* Reward Box if applicable */}
+                            {(data.reward_amount || details.reward_amount) && (
+                                <div className="bg-warning bg-opacity-10 border border-warning rounded-2 p-3 text-center mb-3 position-relative overflow-hidden">
+                                    <div className="x-small text-uppercase text-dark fw-bold mb-1 d-flex align-items-center justify-content-center gap-1">
+                                        <Shield size={14} className="text-warning-emphasis" /> CASH REWARD
+                                    </div>
+                                    <div className="fw-black text-danger-emphasis lh-1 font-monospace fs-4">
+                                        {data.reward_amount ? (data.reward_amount.startsWith('₹') ? '' : '₹') + data.reward_amount : details.reward_amount}
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="mt-auto">
                                 <div className="p-3 bg-slate-50 rounded border border-slate-100">
                                     <h6 className="fw-bold text-uppercase x-small mb-2 text-slate-500">Source Reliability</h6>
@@ -128,13 +151,24 @@ export const IntelligenceCanvas: React.FC<IntelligenceCanvasProps> = ({ data }) 
                                         <span className="x-small fw-bold text-dark">B-2</span>
                                     </div>
                                 </div>
+                                <div className="mt-3 text-center">
+                                    <div className="bg-white p-1 d-inline-block rounded border shadow-sm">
+                                        <QRCode
+                                            size={80}
+                                            style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                                            value={`https://satark.delhipolice.gov.in/intel/${data.token || data.id}`}
+                                            viewBox={`0 0 256 256`}
+                                        />
+                                    </div>
+                                    <div className="x-small text-muted mt-1 fw-bold">SCAN REF</div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     {/* RIGHT: DETAILED TABS */}
                     <div className="col-lg-8">
-                        <div className="bg-white border rounded shadow-sm h-100 d-flex flex-column overflow-hidden">
+                        <div className="bg-white border rounded shadow-sm h-100 d-flex flex-column">
                             {/* TABS */}
                             <div className="d-flex border-bottom bg-slate-50">
                                 {['details', 'evidence', 'analysis'].map(tab => (
@@ -151,7 +185,7 @@ export const IntelligenceCanvas: React.FC<IntelligenceCanvasProps> = ({ data }) 
                             </div>
 
                             {/* TAB CONTENT */}
-                            <div className="p-4 flex-grow-1 overflow-y-auto">
+                            <div className="p-4 flex-grow-1 overflow-y-auto has-cool-scrollbar">
                                 <AnimatePresence mode="wait">
                                     {activeTab === 'details' && (
                                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>

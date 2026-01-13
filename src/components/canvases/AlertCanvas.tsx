@@ -36,7 +36,7 @@ export const AlertCanvas: React.FC<AlertCanvasProps> = ({ data }) => {
     const photoUrl = data.image_url || null;
 
     return (
-        <div ref={printRef} className="bg-white h-100 d-flex flex-column font-sans text-dark overflow-hidden">
+        <div ref={printRef} className="bg-white h-100 d-flex flex-column font-sans text-dark">
             {/* HEADER - ORANGE/BLACK GRADIENT */}
             <div className="text-white px-4 py-3 d-flex align-items-center justify-content-between shadow-sm position-relative overflow-hidden"
                 style={{
@@ -61,7 +61,7 @@ export const AlertCanvas: React.FC<AlertCanvasProps> = ({ data }) => {
             </div>
 
             {/* CONTENT */}
-            <div className="flex-grow-1 overflow-y-auto bg-white p-5 d-flex flex-column align-items-center">
+            <div className="flex-grow-1 overflow-y-auto bg-white p-5 d-flex flex-column align-items-center has-cool-scrollbar">
                 <div className="container" style={{ maxWidth: '800px' }}>
                     {photoUrl && (
                         <div className="mb-4 rounded-3 overflow-hidden shadow-sm border">

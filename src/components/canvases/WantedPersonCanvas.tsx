@@ -8,6 +8,8 @@ import {
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Button } from '@/components/ui/Button';
+import QRCode from 'react-qr-code';
 
 interface WantedPersonCanvasProps {
     data: any;
@@ -59,14 +61,21 @@ export const WantedPersonCanvas: React.FC<WantedPersonCanvasProps> = ({ data }) 
     );
 
     return (
-        <div ref={printRef} className="bg-white vh-100 d-flex flex-column font-sans text-dark overflow-hidden position-relative has-cool-scrollbar">
+        <div ref={printRef} className="bg-white vh-100 d-flex flex-column font-sans text-dark position-relative has-cool-scrollbar">
 
             {/* 1. HEADER - RED BRANDING */}
             <div className="bg-danger pt-3 pb-0 shadow-sm position-relative print-header">
                 {/* Close Button */}
-                <button className="btn btn-dark rounded-circle position-absolute top-0 end-0 m-3 z-20 p-1" id="no-print-footer" style={{ width: '32px', height: '32px' }} onClick={() => router.back()}>
-                    <X size={20} />
-                </button>
+                <div className="position-absolute top-0 end-0 m-3 z-20" id="no-print-footer">
+                    <Button
+                        variant="primary"
+                        size="icon"
+                        onClick={() => router.back()}
+                        style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+                    >
+                        <X size={20} />
+                    </Button>
+                </div>
 
                 <div className="container" style={{ maxWidth: '1000px' }}>
                     <div className="d-flex align-items-center justify-content-between mb-3 position-relative px-4">
@@ -124,7 +133,7 @@ export const WantedPersonCanvas: React.FC<WantedPersonCanvasProps> = ({ data }) 
             )}
 
             {/* 3. CONTENT AREA */}
-            <div className="flex-grow-1 overflow-y-auto p-0 bg-slate-100">
+            <div className="flex-grow-1 overflow-y-auto p-0 bg-slate-100 has-cool-scrollbar">
                 <div className="container bg-white shadow min-h-100 p-0" style={{ maxWidth: '1000px' }}>
                     <AnimatePresence mode="wait">
                         {activeTab === 'details' ? (
@@ -134,10 +143,11 @@ export const WantedPersonCanvas: React.FC<WantedPersonCanvasProps> = ({ data }) 
                                 className="row g-0"
                             >
                                 {/* LEFT COLUMN: VISUAL IDENTIFICATION */}
-                                <div className="col-lg-4 bg-light border-end border-secondary-subtle p-0 d-flex flex-column">
-                                    {/* Mugshot Area */}
-                                    <div className="p-3 bg-white border-bottom shadow-sm">
-                                        <div className="ratio ratio-3x4 bg-gray-200 overflow-hidden rounded-1 border border-secondary position-relative">
+                                <div className="col-lg-4 bg-white border-end border-secondary-subtle p-4 d-flex flex-column align-items-center text-center overflow-y-auto has-cool-scrollbar" style={{ maxHeight: 'calc(100vh - 250px)' }}>
+
+                                    {/* Mugshot Area - Top Position */}
+                                    <div className="p-1 border border-2 border-dark mb-4 w-75 shadow-sm bg-white" style={{ transform: 'rotate(-1deg)' }}>
+                                        <div className="ratio ratio-1x1 bg-gray-200 overflow-hidden position-relative">
                                             {photoUrl ? (
                                                 <img
                                                     src={photoUrl}
@@ -158,79 +168,82 @@ export const WantedPersonCanvas: React.FC<WantedPersonCanvasProps> = ({ data }) 
                                         </div>
                                     </div>
 
-                                    {/* Primary Identity Stats */}
-                                    <div className="p-4 flex-grow-1 d-flex flex-column">
-                                        <div className="text-center mb-1">
-                                            <span className="badge bg-danger text-white text-uppercase ls-2 small fw-bold px-2 py-1">Suspect</span>
-                                        </div>
-                                        <h2 className="fw-black text-uppercase text-dark lh-1 mb-1 text-center">{details.name || "UNKNOWN SUBJECT"}</h2>
+                                    {/* Primary Identity */}
+                                    <div className="text-center mb-1">
+                                        <span className="badge bg-danger text-white text-uppercase ls-2 small fw-bold px-3 py-1">Suspect</span>
+                                    </div>
+                                    <h2 className="fw-black text-uppercase text-dark lh-1 mb-2 display-6">{details.name || "UNKNOWN SUBJECT"}</h2>
 
-                                        <div className="d-flex flex-wrap justify-content-center gap-2 mb-4">
-                                            {details.alias && (
-                                                <span className="badge bg-secondary bg-opacity-10 text-dark border border-secondary border-opacity-25 fst-italic">AKA: {details.alias}</span>
-                                            )}
+                                    {details.alias && (
+                                        <div className="bg-dark text-white rounded-pill px-3 py-1 fw-bold text-uppercase x-small mb-4 ls-1">
+                                            AKA: {details.alias}
                                         </div>
+                                    )}
 
-                                        {/* Vertical Bio List */}
-                                        <div className="bg-white rounded-2 border shadow-sm mb-4 overflow-hidden">
-                                            {[
-                                                { label: 'Height', value: details.height },
-                                                { label: 'Weight', value: details.weight },
-                                                { label: 'Sex', value: details.sex || details.gender },
-                                                { label: 'Hair', value: details.hair },
-                                                { label: 'Eyes', value: details.eyes },
-                                                { label: 'DOB', value: details.dob ? details.dob.split('-')[0] : null },
-                                            ].map((stat, i) => (
-                                                <div key={i} className={`d-flex align-items-center justify-content-between px-3 py-2 ${i !== 5 ? 'border-bottom' : ''}`}>
-                                                    <span className="x-small text-uppercase text-muted fw-bold">{stat.label}</span>
-                                                    <span className="fw-bold text-dark font-monospace">{stat.value || '--'}</span>
+                                    {/* Grid Stats */}
+                                    <div className="container-fluid px-0 mb-4 w-100">
+                                        <div className="row g-0 border border-dark">
+                                            <div className="col-6 border-end border-bottom border-dark p-2">
+                                                <div className="x-small text-uppercase text-muted fw-bold">HEIGHT</div>
+                                                <div className="fs-5 fw-black">{details.height || 'N/A'}</div>
+                                            </div>
+                                            <div className="col-6 border-bottom border-dark p-2">
+                                                <div className="x-small text-uppercase text-muted fw-bold">WEIGHT</div>
+                                                <div className="fs-5 fw-black">{details.weight || 'N/A'}</div>
+                                            </div>
+                                            <div className="col-6 border-end border-bottom border-dark p-2">
+                                                <div className="x-small text-uppercase text-muted fw-bold">SEX</div>
+                                                <div className="fs-5 fw-black">{details.sex || details.gender || 'N/A'}</div>
+                                            </div>
+                                            <div className="col-6 border-bottom border-dark p-2">
+                                                <div className="x-small text-uppercase text-muted fw-bold">HAIR</div>
+                                                <div className="fs-5 fw-black">{details.hair || 'N/A'}</div>
+                                            </div>
+                                            <div className="col-6 border-end border-dark p-2">
+                                                <div className="x-small text-uppercase text-muted fw-bold">EYES</div>
+                                                <div className="fs-5 fw-black">{details.eyes || 'N/A'}</div>
+                                            </div>
+                                            <div className="col-6 p-2">
+                                                <div className="x-small text-uppercase text-muted fw-bold">DOB</div>
+                                                <div className="fs-5 fw-black">{details.dob ? details.dob.split('-')[0] : 'N/A'}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Reward Box */}
+                                    {details.bounty_amount && (
+                                        <div className="bg-warning bg-opacity-10 border border-warning rounded-2 p-3 text-center mb-4 position-relative overflow-hidden w-100">
+                                            <div className="position-absolute top-0 start-0 w-100 h-100 bg-warning opacity-10" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.05) 10px, rgba(0,0,0,0.05) 20px)' }}></div>
+                                            <div className="position-relative z-10">
+                                                <div className="x-small text-uppercase text-dark fw-bold mb-1 d-flex align-items-center justify-content-center gap-1">
+                                                    <Award size={14} className="text-warning-emphasis" /> CASH REWARD
                                                 </div>
-                                            ))}
-                                        </div>
-
-                                        {/* Reward Box */}
-                                        {details.bounty_amount && (
-                                            <div className="bg-warning bg-opacity-10 border border-warning rounded-2 p-3 text-center mb-4 position-relative overflow-hidden">
-                                                <div className="position-absolute top-0 start-0 w-100 h-100 bg-warning opacity-10" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.05) 10px, rgba(0,0,0,0.05) 20px)' }}></div>
-                                                <div className="position-relative z-10">
-                                                    <div className="x-small text-uppercase text-dark fw-bold mb-1 d-flex align-items-center justify-content-center gap-1">
-                                                        <Award size={14} className="text-warning-emphasis" /> CASH REWARD
-                                                    </div>
-                                                    <div className="display-6 fw-black text-danger-emphasis lh-1 font-monospace">
-                                                        {details.bounty_amount.startsWith('₹') ? '' : '₹'}{details.bounty_amount}
-                                                    </div>
+                                                <div className="display-6 fw-black text-danger-emphasis lh-1 font-monospace">
+                                                    {details.bounty_amount.startsWith('₹') ? '' : '₹'}{details.bounty_amount}
                                                 </div>
                                             </div>
-                                        )}
-
-                                        {/* Distinguishing Marks Highlight */}
-                                        {details.scars_marks && (
-                                            <div className="mb-4 text-center">
-                                                <div className="x-small text-uppercase text-muted fw-bold mb-1">Distinguishing Marks</div>
-                                                <div className="fw-medium text-danger">{details.scars_marks}</div>
-                                            </div>
-                                        )}
-
-                                        <div className="mt-auto pt-3 text-center">
-                                            {/* QR Code */}
-                                            <div className="bg-white p-2 d-inline-block rounded border shadow-sm mb-3">
-                                                <div style={{ height: "auto", margin: "0 auto", maxWidth: 100, width: "100%" }}>
-                                                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : '')}`} alt="Scan for info" className="w-100" />
-                                                </div>
-                                            </div>
-
-                                            {/* Visual Confirmation - Secondary Image */}
-                                            {photoUrl && (
-                                                <div className="mb-2">
-                                                    <div className="x-small text-uppercase fw-bold text-muted mb-1">Visual ID</div>
-                                                    <div className="ratio ratio-1x1 d-inline-block rounded-circle overflow-hidden border border-2 border-white shadow-sm" style={{ width: '64px' }}>
-                                                        <img src={photoUrl} className="object-fit-cover w-100 h-100" alt="Visual ID" />
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            <div className="x-small text-uppercase fw-bold text-muted">Scan to Share</div>
                                         </div>
+                                    )}
+
+                                    {/* Distinguishing Marks */}
+                                    {details.scars_marks && (
+                                        <div className="mb-4 w-100">
+                                            <div className="text-uppercase x-small text-danger fw-bold mb-1 border-bottom border-danger-subtle pb-1">DISTINGUISHING MARKS</div>
+                                            <div className="fw-bold text-dark fs-6 mt-2">{details.scars_marks}</div>
+                                        </div>
+                                    )}
+
+                                    {/* QR Code */}
+                                    <div className="mt-auto pt-4 border-top w-100">
+                                        <div className="bg-white p-2 d-inline-block border border-dark rounded-0">
+                                            <QRCode
+                                                value={`https://satark.delhipolice.gov.in/wanted/${data.token || data.id}`}
+                                                size={100}
+                                                fgColor="#000000"
+                                                bgColor="#FFFFFF"
+                                            />
+                                        </div>
+                                        <div className="x-small fw-bold text-uppercase mt-2 text-muted">SCAN FOR DIGITAL INFO</div>
                                     </div>
 
 
@@ -238,7 +251,7 @@ export const WantedPersonCanvas: React.FC<WantedPersonCanvasProps> = ({ data }) 
 
 
                                 {/* RIGHT COLUMN: DETAILED DOSSIER */}
-                                <div className="col-lg-8 p-4 px-md-5">
+                                <div className="col-lg-8 p-4 px-md-5 bg-white overflow-y-auto has-cool-scrollbar" style={{ maxHeight: 'calc(100vh - 250px)' }}>
 
                                     {/* Personal Details */}
                                     <SectionHeader icon={Info} title="Personal Details" />
@@ -389,21 +402,24 @@ export const WantedPersonCanvas: React.FC<WantedPersonCanvasProps> = ({ data }) 
                 </div>
             </div>
 
-            {/* 4. FOOTER */}
-            <div id="no-print-footer" className="p-3 bg-white border-top shadow-lg d-flex justify-content-between align-items-center position-relative z-30">
-                <button onClick={handleDownloadPDF} className="btn btn-outline-dark fw-bold text-uppercase d-flex align-items-center gap-2">
-                    <Printer size={18} /> Print Dossier
-                </button>
-                <div className="text-end small text-muted d-none d-md-block">
-                    <div>Confidential - Law Enforcement Use Only</div>
-                    <div className="x-small opacity-75">ID: {data.token || data.id}</div>
+            {/* 4. STICKY FOOTER CTA */}
+            <div id="no-print-footer" className="border-top shadow-lg position-sticky bottom-0 z-50">
+                <div className="d-flex">
+                    <button
+                        onClick={handleDownloadPDF}
+                        className="btn flex-grow-1 rounded-0 py-3 fw-bold text-uppercase d-flex align-items-center justify-content-center gap-2 border-end text-white"
+                        style={{ letterSpacing: '1px', backgroundColor: '#1e3a8a' }}
+                    >
+                        <Printer size={20} /> Print Dossier
+                    </button>
+                    <button
+                        onClick={() => router.push(`/report?ref=${data.id}`)}
+                        className="btn btn-danger flex-grow-1 rounded-0 py-3 fw-black text-uppercase fs-5 d-flex align-items-center justify-content-center gap-2"
+                        style={{ letterSpacing: '1px', flex: '2' }}
+                    >
+                        <Flag size={24} className="fill-white" /> Report Sighting
+                    </button>
                 </div>
-                <button
-                    onClick={() => router.push(`/report?ref=${data.id}`)}
-                    className="btn btn-danger fw-bold text-uppercase d-flex align-items-center gap-2 shadow-sm"
-                >
-                    <Flag size={18} /> Report Sighting
-                </button>
             </div>
 
             <style jsx global>{`
