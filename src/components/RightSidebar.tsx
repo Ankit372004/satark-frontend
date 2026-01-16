@@ -4,76 +4,34 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ShieldCheck, AlertTriangle, Phone, ChevronUp, ChevronDown, Award, MapPin, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { COLORS, GRADIENTS, SHADOWS } from '@/lib/theme';
-import { WantedDossier } from '@/components/WantedDossier';
+import { WantedPerson } from '@/lib/types';
 
-interface WantedPerson {
-    id: number;
-    name: string;
-    alias: string;
-    location: string;
-    priority: string;
-    reward: string;
-    image: string;
-    description: string;
-    risk: 'EXTREME' | 'HIGH' | 'MODERATE';
-}
-
-const MOST_WANTED: WantedPerson[] = [
-    {
-        id: 1,
-        name: "Vikram 'Shaka' Singh",
-        alias: "The Ghost",
-        location: "Last seen South Delhi",
-        priority: "CRITICAL",
-        reward: "₹5,00,000 CASH BOUNTY",
-        image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&h=200&fit=crop",
-        description: "Wanted for multiple high-profile burglaries and organized crime. Highly dangerous. Deep scar on right forearm.",
-        risk: 'EXTREME'
-    },
-    {
-        id: 2,
-        name: "Sandeep Malhotra",
-        alias: "Fin-Wizard",
-        location: "NCR Region",
-        priority: "HIGH",
-        reward: "₹3,00,000",
-        image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=200&h=200&fit=crop",
-        description: "Economic offender involved in ₹200Cr financial fraud. Speaks 4 languages fluently.",
-        risk: 'HIGH'
-    },
-    {
-        id: 3,
-        name: "Rocky 'Binder' ",
-        alias: "The Bull",
-        location: "GT Road Area",
-        priority: "CRITICAL",
-        reward: "₹2,00,000 CASH REWARD",
-        image: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=200&h=200&fit=crop",
-        description: "Known for extortion and assault. Last seen traveling in a black modified SUV.",
-        risk: 'EXTREME'
-    },
-    {
-        id: 4,
-        name: "Anonymous Cyber Hive",
-        alias: "Operator-0",
-        location: "Digital / Unknown",
-        priority: "HIGH",
-        reward: "₹1,50,000",
-        image: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=200&h=200&fit=crop",
-        description: "Targeting governmental portals for data exfiltration. Information leading to physical location needed.",
-        risk: 'HIGH'
-    },
-];
-
-export default function RightSidebar() {
-    const [selectedPerson, setSelectedPerson] = useState<WantedPerson | null>(null);
+export default function RightSidebar({ onLeadSelect }: { onLeadSelect?: (lead: any) => void }) {
+    const [leads, setLeads] = useState<WantedPerson[]>([]);
     const [isPaused, setIsPaused] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const pauseTimer = useRef<NodeJS.Timeout | null>(null);
 
+    // Fetch Active Leads
+    useEffect(() => {
+        const fetchLeads = async () => {
+            try {
+                // Fetch only WANTED or CRITICAL leads for the sidebar from PUBLIC API
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/leads/public-leads?status=WANTED`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setLeads(Array.isArray(data) ? data : (data.leads || []));
+                }
+            } catch (err) {
+                console.error("Failed to fetch sidebar leads", err);
+            }
+        };
+        fetchLeads();
+    }, []);
+
     // Infinite Autoscroll Logic
     useEffect(() => {
-        if (isPaused) return;
+        if (isPaused || leads.length === 0) return;
 
         const scrollContainer = scrollRef.current;
         if (!scrollContainer) return;
@@ -87,10 +45,10 @@ export default function RightSidebar() {
                     behavior: 'auto'
                 });
             }
-        }, 30);
+        }, 40);
 
         return () => clearInterval(scrollInterval);
-    }, [isPaused]);
+    }, [isPaused, leads]);
 
     const handleHoverStart = () => {
         setIsPaused(true);
@@ -100,25 +58,30 @@ export default function RightSidebar() {
     const handleHoverEnd = () => {
         pauseTimer.current = setTimeout(() => {
             setIsPaused(false);
-        }, 3000); // Resume after 3 seconds of leaving hover
+        }, 3000);
     };
 
     const scrollUp = () => {
-        if (scrollRef.current) scrollRef.current.scrollTop -= 100;
+        if (scrollRef.current) scrollRef.current.scrollTop -= 150;
     };
 
     const scrollDown = () => {
-        if (scrollRef.current) scrollRef.current.scrollTop += 100;
+        if (scrollRef.current) scrollRef.current.scrollTop += 150;
     };
 
     return (
         <div className="d-none d-xl-block h-100">
             <div className="sticky-top" style={{ top: '100px', height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
 
-                {/* Most Wanted Film Strip */}
+                {/* Fugitive List text and filters removed as per request */}
+                <div className="mb-3"></div>
+
+                {/* Vertical Loop - Portrait Mode */}
                 <div className="card border-0 shadow-sm mb-3 overflow-hidden flex-grow-1" style={{ borderRadius: '16px', background: COLORS.surface }}>
                     <div className="card-header bg-transparent border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
-                        <h6 className="fw-bold small text-uppercase mb-0" style={{ color: COLORS.textSecondary }}>Most Wanted</h6>
+                        <h6 className="fw-bold small text-uppercase mb-0" style={{ color: COLORS.navyBlue, letterSpacing: '1px' }}>
+                            <span className="text-danger me-1">●</span> Active Cases
+                        </h6>
                         <div className="d-flex gap-1">
                             <button onClick={scrollUp} className="btn btn-sm btn-light rounded-circle p-1"><ChevronUp size={14} /></button>
                             <button onClick={scrollDown} className="btn btn-sm btn-light rounded-circle p-1"><ChevronDown size={14} /></button>
@@ -127,51 +90,128 @@ export default function RightSidebar() {
 
                     <div
                         ref={scrollRef}
-                        className="card-body p-2 overflow-hidden"
-                        style={{ height: '0', flexGrow: 1, cursor: 'pointer' }}
+                        className="card-body p-3 overflow-y-auto custom-scrollbar"
+                        style={{ height: '0', flexGrow: 1 }}
                         onMouseEnter={handleHoverStart}
                         onMouseLeave={handleHoverEnd}
                     >
-                        <div className="d-flex flex-column gap-3 py-2">
-                            {/* Double items for infinite look */}
-                            {[...MOST_WANTED, ...MOST_WANTED].map((person, idx) => (
+                        {/* Empty State */}
+                        {leads.length === 0 && (
+                            <div className="h-100 d-flex flex-column align-items-center justify-content-center text-muted text-center opacity-50">
+                                <ShieldCheck size={48} className="mb-2" />
+                                <small className="text-uppercase fw-bold ls-1">No Active Warrants</small>
+                            </div>
+                        )}
+
+                        <div className="d-flex flex-column gap-4 py-2">
+                            {/* Loop items - tripled for smooth scroll only if enough items, otherwise just once */}
+                            {(leads.length > 3 ? [...leads, ...leads, ...leads] : leads).map((person, idx) => (
                                 <motion.div
                                     key={`${person.id}-${idx}`}
-                                    whileHover={{ scale: 1.05, rotate: idx % 2 === 0 ? 1 : -1 }}
-                                    onClick={() => setSelectedPerson(person)}
-                                    className="p-0 overflow-hidden transition-all shadow-sm position-relative"
+                                    whileHover={{ y: -5, boxShadow: '0 16px 32px rgba(220, 38, 38, 0.25)' }}
+                                    onClick={() => onLeadSelect?.(person)}
+                                    className="card border-0 overflow-hidden position-relative"
                                     style={{
-                                        background: '#fdf6e3', // Parchment color
-                                        border: '8px solid #3d2b1f', // Heavy wooden/old frame
-                                        borderRadius: '4px',
-                                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                                        minHeight: '120px'
+                                        borderRadius: '16px',
+                                        background: 'white',
+                                        boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.3s ease'
                                     }}
                                 >
-                                    {/* Rugged Texture Overlay */}
-                                    <div className="position-absolute inset-0 opacity-10 pointer-events-none" style={{ background: 'url(https://www.transparenttextures.com/patterns/pinstriped-suit.png)' }}></div>
-
-                                    <div className="text-center bg-dark py-1">
-                                        <span className="fw-bold text-white letter-spacing-2" style={{ fontSize: '9px' }}>WANTED</span>
+                                    {/* WANTED Banner - Top */}
+                                    <div className="w-100 bg-danger text-white text-center py-2 position-relative overflow-hidden">
+                                        <div className="position-absolute top-0 start-0 w-100 h-100" style={{
+                                            background: 'linear-gradient(135deg, #DC2626 0%, #991B1B 100%)',
+                                            opacity: 0.9
+                                        }}></div>
+                                        <h6 className="fw-black text-uppercase mb-0 position-relative" style={{
+                                            fontSize: '13px',
+                                            letterSpacing: '2px',
+                                            textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                                        }}>
+                                            WANTED
+                                        </h6>
                                     </div>
 
-                                    <div className="p-2 d-flex flex-column align-items-center">
-                                        <div className="border border-2 border-dark mb-1" style={{ padding: '2px' }}>
-                                            <img src={person.image} style={{ width: '80px', height: '80px', objectFit: 'cover', filter: 'sepia(0.3) contrast(1.1)' }} />
+                                    {/* Large Portrait Image */}
+                                    <div className="w-100 position-relative" style={{ height: '200px', background: '#f8f9fa' }}>
+                                        <img
+                                            src={person.image_url || (typeof person.image === 'string' ? person.image : '/delhi-police-logo.png')}
+                                            className="w-100 h-100 object-fit-cover"
+                                            style={{ objectPosition: 'top center' }}
+                                            alt={person.name}
+                                        />
+                                        {/* Gradient overlay for better text readability */}
+                                        <div className="position-absolute bottom-0 start-0 w-100 h-50" style={{
+                                            background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)'
+                                        }}></div>
+
+                                        {/* Priority Badge - Bottom Right */}
+                                        <div className="position-absolute bottom-0 end-0 m-2">
+                                            <span className={`badge fw-bold rounded-1 px-2 py-1 shadow ${person.priority === 'CRITICAL' ? 'bg-danger text-white' :
+                                                person.priority === 'HIGH' ? 'bg-warning text-dark' :
+                                                    'bg-secondary text-white'
+                                                }`} style={{ fontSize: '9px', letterSpacing: '0.5px' }}>
+                                                {person.priority}
+                                            </span>
                                         </div>
-                                        <h6 className="fw-bold mb-0 text-center" style={{ fontSize: '11px', color: '#3d2b1f', fontFamily: 'serif' }}>{person.name.toUpperCase()}</h6>
-                                        <p className="small mb-0 fw-bold text-danger" style={{ fontSize: '12px' }}>{person.reward}</p>
                                     </div>
 
-                                    <div className="text-center pb-1">
-                                        <span className="badge rounded-0 bg-transparent text-dark border border-dark border-opacity-25" style={{ fontSize: '7px' }}>JURISDICTION: {person.location}</span>
+                                    {/* Card Content */}
+                                    <div className="p-3 text-center">
+                                        {/* Name - Large and Bold */}
+                                        <h5 className="fw-black text-dark text-uppercase mb-1" style={{
+                                            fontSize: '16px',
+                                            letterSpacing: '0.5px',
+                                            lineHeight: '1.2'
+                                        }}>
+                                            {person.name || person.title?.replace('WANTED:', '').trim() || 'Unknown'}
+                                        </h5>
+
+                                        {/* Alias - if exists */}
+                                        {person.alias && (
+                                            <p className="text-muted fw-semibold mb-2 fst-italic" style={{ fontSize: '12px' }}>
+                                                "{person.alias}"
+                                            </p>
+                                        )}
+
+                                        {/* Bounty Badge - Gold themed */}
+                                        {(person.reward || person.reward_amount) && (
+                                            <div className="mt-2 mb-2">
+                                                <div className="d-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill border border-warning" style={{
+                                                    background: 'linear-gradient(135deg, #FEF3C7 0%, #FCD34D 100%)',
+                                                    boxShadow: '0 2px 8px rgba(252, 211, 77, 0.3)'
+                                                }}>
+                                                    <Award size={14} className="text-warning" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }} />
+                                                    <span className="fw-black text-dark" style={{
+                                                        fontSize: '12px',
+                                                        letterSpacing: '0.3px'
+                                                    }}>
+                                                        {person.reward || person.reward_amount}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* CTA Button */}
+                                        <div className="mt-3 pt-2 border-top">
+                                            <button
+                                                className="btn btn-danger w-100 fw-bold text-uppercase rounded-pill py-2 d-flex align-items-center justify-content-center gap-2"
+                                                style={{ fontSize: '11px', letterSpacing: '1px' }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onLeadSelect?.(person);
+                                                }}
+                                            >
+                                                <ShieldCheck size={16} />
+                                                View Case
+                                            </button>
+                                        </div>
                                     </div>
                                 </motion.div>
                             ))}
                         </div>
-                    </div>
-                    <div className="text-center p-2 border-top bg-light" style={{ fontSize: '10px' }}>
-                        <span className="text-muted fw-bold pulsing-dot">LIVE UPDATES</span>
                     </div>
                 </div>
 
@@ -195,8 +235,6 @@ export default function RightSidebar() {
                     </p>
                 </div>
             </div>
-
-            <WantedDossier person={selectedPerson as any} onClose={() => setSelectedPerson(null)} />
         </div>
     );
 }

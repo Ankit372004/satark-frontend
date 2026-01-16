@@ -12,41 +12,77 @@ import {
     MoreHorizontal,
     FileText,
     Download,
-    Inbox
+    Inbox,
+    Plus
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useRouter, usePathname } from 'next/navigation';
 
 import { COLORS } from '@/lib/theme';
+import { LEAD_CATEGORIES } from '@/lib/constants';
 
 export default function InboxPage() {
     const [leads, setLeads] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+    const [selectedCategory, setSelectedCategory] = useState("All Categories");
+    const [activeTab, setActiveTab] = useState("All"); // New State for Tabs
+    const router = useRouter();
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/leads`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        })
-            .then(res => res.json())
-            .then(data => {
+        // Fetch leads (Mock or Real)
+        const fetchLeads = async () => {
+            const token = localStorage.getItem('token');
+            try {
+                // Switching to INTERNAL API for Officer Dashboard
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/leads/internal-leads?limit=50`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`, // Pass token for internal access
+                        'Content-Type': 'application/json'
+                    }
+                });
+                if (res.status === 401 || res.status === 403) {
+                    // Handle unauthorized or forbidden (token invalid/expired)
+                    localStorage.removeItem('token'); // Clear invalid token
+                    window.location.href = '/login';
+                    return;
+                }
+                const data = await res.json();
                 setLeads(Array.isArray(data) ? data : []);
+            } catch (e) {
+                console.error(e);
+            } finally {
                 setLoading(false);
-            })
-            .catch(err => {
-                console.error(err);
-                setLeads([]);
-                setLoading(false);
-            });
+            }
+        };
+        fetchLeads();
     }, []);
 
-    const filteredLeads = leads.filter(lead =>
-        lead.token?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.title?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredLeads = leads.filter(lead => {
+        const matchesSearch = (lead.token?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (lead.title?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+        const matchesCategory = selectedCategory === "All Categories" || lead.category_id === selectedCategory;
+
+        // Tab Filtering Logic
+        let matchesTab = true;
+        if (activeTab === 'Wanted') matchesTab = lead.status === 'WANTED';
+        else if (activeTab === 'Missing') matchesTab = lead.status === 'MISSING';
+        else if (activeTab === 'Alerts') matchesTab = lead.status === 'ALERT';
+        else if (activeTab === 'Intel') matchesTab = ['SUBMITTED', 'INFO_SEEKING', 'GENERAL'].includes(lead.status);
+
+        return matchesSearch && matchesCategory && matchesTab;
+    });
+
+    const tabs = [
+        { id: 'All', label: 'All Intel' },
+        { id: 'Wanted', label: 'Wanted' },
+        { id: 'Missing', label: 'Missing' },
+        { id: 'Alerts', label: 'Alerts' },
+        { id: 'Intel', label: 'Appeals & Intel' },
+    ];
 
     return (
-        <div className="pb-5">
+        <div className="pb-5 relative">
             {/* Header Section */}
             <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
                 <div>
@@ -57,9 +93,6 @@ export default function InboxPage() {
                     <button className="btn btn-white border shadow-sm d-flex align-items-center gap-2">
                         <Download size={18} /> Export CSV
                     </button>
-                    <button className="btn text-white shadow-sm d-flex align-items-center gap-2" style={{ background: COLORS.navyBlue }}>
-                        <History size={18} /> Archive All
-                    </button>
                 </div>
             </div>
 
@@ -68,7 +101,7 @@ export default function InboxPage() {
                 {[
                     { label: 'Pending Review', value: leads.filter(l => l.status === 'SUBMITTED').length, icon: Clock, color: '#3B82F6' },
                     { label: 'Critical Priority', value: leads.filter(l => l.priority === 'CRITICAL').length, icon: AlertTriangle, color: COLORS.wineRed },
-                    { label: 'Actioned Today', value: 12, icon: CheckCircle2, color: '#10B981' }
+                    { label: 'Actioned Today', value: leads.filter(l => l.status === 'ACTIONED' || l.status === 'RESOLVED').length, icon: CheckCircle2, color: '#10B981' }
                 ].map((stat, i) => (
                     <div key={i} className="col-md-4">
                         <div className="card border-0 shadow-sm p-3 rounded-4 bg-white border-start border-4" style={{ borderColor: stat.color }}>
@@ -83,6 +116,23 @@ export default function InboxPage() {
                             </div>
                         </div>
                     </div>
+                ))}
+            </div>
+
+            {/* TAB NAVIGATION */}
+            <div className="d-flex gap-2 mb-4 overflow-x-auto pb-2">
+                {tabs.map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`btn rounded-pill px-4 fw-bold transition-all ${activeTab === tab.id
+                            ? 'bg-dark text-white shadow-lg'
+                            : 'bg-white text-muted border hover-scale'
+                            }`}
+                        style={{ whiteSpace: 'nowrap' }}
+                    >
+                        {tab.label}
+                    </button>
                 ))}
             </div>
 
@@ -103,11 +153,16 @@ export default function InboxPage() {
                             </div>
                         </div>
                         <div className="col-md-3">
-                            <select className="form-select border rounded-3 shadow-none" style={{ borderColor: '#E2E8F0' }}>
-                                <option>All Categories</option>
-                                <option>Narcotics</option>
-                                <option>Cyber Crime</option>
-                                <option>Terrorism</option>
+                            <select
+                                className="form-select border rounded-3 shadow-none"
+                                style={{ borderColor: '#E2E8F0' }}
+                                value={selectedCategory}
+                                onChange={(e) => setSelectedCategory(e.target.value)}
+                            >
+                                <option value="All Categories">All Categories</option>
+                                {LEAD_CATEGORIES.map(cat => (
+                                    <option key={cat.id} value={cat.id}>{cat.label}</option>
+                                ))}
                             </select>
                         </div>
                         <div className="col-md-3">
@@ -131,6 +186,7 @@ export default function InboxPage() {
                             <thead style={{ background: '#F8FAFC' }}>
                                 <tr>
                                     <th className="ps-4 py-3 text-muted small text-uppercase fw-bold">Token / ID</th>
+                                    <th className="py-3 text-muted small text-uppercase fw-bold">Category</th>
                                     <th className="py-3 text-muted small text-uppercase fw-bold">Priority</th>
                                     <th className="py-3 text-muted small text-uppercase fw-bold">Intelligence Summary</th>
                                     <th className="py-3 text-muted small text-uppercase fw-bold">Status</th>
@@ -140,7 +196,7 @@ export default function InboxPage() {
                             </thead>
                             <tbody>
                                 {filteredLeads.map((lead: any) => (
-                                    <tr key={lead.id} className="transition-all">
+                                    <tr key={lead.id} className="transition-all" style={{ cursor: 'pointer' }} onClick={() => router.push(`/dashboard/case/${lead.id}`)}>
                                         <td className="ps-4">
                                             <div className="d-flex align-items-center gap-2">
                                                 <div className="p-2 rounded bg-light">
@@ -148,6 +204,11 @@ export default function InboxPage() {
                                                 </div>
                                                 <span className="fw-bold font-monospace text-primary">{lead.token}</span>
                                             </div>
+                                        </td>
+                                        <td>
+                                            <span className="badge rounded-pill bg-light text-dark border px-3">
+                                                {LEAD_CATEGORIES.find(c => c.id === lead.category_id)?.label || lead.category_id || 'N/A'}
+                                            </span>
                                         </td>
                                         <td>
                                             <span
@@ -172,7 +233,7 @@ export default function InboxPage() {
                                                     style={{
                                                         width: '8px',
                                                         height: '8px',
-                                                        background: lead.status === 'SUBMITTED' ? '#3B82F6' : '#10B981'
+                                                        background: lead.status === 'SUBMITTED' ? '#3B82F6' : '#10B981' // Green for actioned, Blue for submitted
                                                     }}
                                                 />
                                                 <span className="small fw-bold text-dark">{lead.status}</span>
@@ -182,10 +243,10 @@ export default function InboxPage() {
                                             {new Date(lead.created_at).toLocaleDateString()}<br />
                                             {new Date(lead.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </td>
-                                        <td className="text-center px-4">
+                                        <td className="text-center px-4" onClick={(e) => e.stopPropagation()}>
                                             <div className="d-flex justify-content-center gap-1">
                                                 <a
-                                                    href={`/dashboard/leads/${lead.id}`}
+                                                    href={`/dashboard/case/${lead.id}`}
                                                     className="btn btn-sm px-3 fw-bold rounded-pill text-white"
                                                     style={{ background: COLORS.navyBlue, fontSize: '12px' }}
                                                 >
@@ -200,7 +261,7 @@ export default function InboxPage() {
                                 ))}
                                 {filteredLeads.length === 0 && (
                                     <tr>
-                                        <td colSpan={6} className="text-center py-5">
+                                        <td colSpan={7} className="text-center py-5">
                                             <div className="opacity-50">
                                                 <Inbox size={48} className="mb-3" />
                                                 <p className="fw-bold mb-0">No active intelligence reports found.</p>
@@ -214,6 +275,10 @@ export default function InboxPage() {
                     </div>
                 </div>
             )}
+
+            <style jsx>{`
+                .hover-scale:hover { transform: scale(1.05); }
+            `}</style>
         </div>
     );
 }

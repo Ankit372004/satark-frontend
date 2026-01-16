@@ -76,19 +76,23 @@ export default function Header() {
                             </div>
                         </Link>
 
+                        {/* Portal Tagline */}
+                        <div className="d-none d-xl-block position-absolute start-50 translate-middle-x">
+                            <h3 className="mb-0 fw-black text-uppercase text-center ls-1" style={{ color: '#FFFF00', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+                                See Something, Say Something
+                            </h3>
+                        </div>
+
                         {/* Navigation */}
                         <nav className="d-none d-lg-flex align-items-center gap-4">
                             <Link href="/" className="nav-link text-white fw-500 hover-gold">
                                 {t('nav.home')}
                             </Link>
-                            <Link href="/report" className="nav-link text-white fw-500 hover-gold">
-                                {t('nav.report')}
-                            </Link>
-                            <Link href="/track" className="nav-link text-white fw-500 hover-gold">
-                                {t('nav.track')}
-                            </Link>
                             <Link href="/most-wanted" className="nav-link text-white fw-500 hover-gold">
-                                Most Wanted
+                                Wanted
+                            </Link>
+                            <Link href="/missing-persons" className="nav-link text-white fw-500 hover-gold">
+                                Missing Person
                             </Link>
                             <Link
                                 href="/login"

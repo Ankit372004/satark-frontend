@@ -11,7 +11,7 @@ interface Lead {
     time: string;
     type: string;
     description: string;
-    status: 'WANTED' | 'MISSING' | 'ALERT';
+    status: 'WANTED' | 'MISSING' | 'ALERT' | 'SEEKING_INFO' | 'INFO_SEEKING' | 'GENERAL' | string;
     priority?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
     reward?: string | null;
     image_url?: string;
@@ -102,7 +102,9 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onClick, onReportAnony
             style={{
                 cursor: 'pointer',
                 borderRadius: '16px',
-                background: lead.isPinned ? COLORS.navyBlue : 'rgba(255, 255, 255, 0.9)',
+                background: lead.isPinned
+                    ? (lead.priority === 'CRITICAL' ? COLORS.wineRed : COLORS.navyBlue)
+                    : 'rgba(255, 255, 255, 0.9)',
                 backdropFilter: 'blur(10px)',
                 boxShadow: lead.isPinned ? '0 15px 35px rgba(0, 0, 80, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.05)',
                 border: lead.isPinned ? `2px solid ${COLORS.golden}` : '1px solid rgba(255, 255, 255, 0.3)',
@@ -163,70 +165,63 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onClick, onReportAnony
                                     </span>
                                 )}
 
-                                {/* Status Badge */}
+                                {/* Universal Status Pill with Friendly Labels */}
                                 <span
-                                    className="badge rounded-pill px-3 py-1"
+                                    className="badge rounded-pill px-3 py-1 fw-bold"
                                     style={{
-                                        background: lead.status === 'WANTED'
-                                            ? COLORS.wineRed
-                                            : lead.status === 'MISSING'
-                                                ? COLORS.golden
-                                                : COLORS.navyBlue,
+                                        background: (() => {
+                                            switch (lead.status) {
+                                                case 'WANTED': return COLORS.wineRed;
+                                                case 'MISSING': return COLORS.golden;
+                                                case 'ALERT': return '#FF4500'; // OrangeRed
+                                                case 'SEEKING_INFO':
+                                                case 'INFO_SEEKING': return '#0D6EFD'; // Blue
+                                                default: return COLORS.navyBlue;
+                                            }
+                                        })(),
                                         color: lead.status === 'MISSING' ? COLORS.navyBlue : 'white',
-                                        fontSize: '11px',
-                                        fontWeight: 'bold',
-                                        textTransform: 'uppercase',
+                                        fontSize: '10px',
                                         letterSpacing: '0.5px'
                                     }}
                                 >
-                                    {lead.status}
+                                    {(() => {
+                                        switch (lead.status) {
+                                            case 'WANTED': return 'WANTED PERSON';
+                                            case 'MISSING': return 'MISSING PERSON';
+                                            case 'ALERT': return 'PUBLIC SAFETY ALERT';
+                                            case 'SEEKING_INFO':
+                                            case 'INFO_SEEKING': return 'APPEAL (GENERAL INTEL)';
+                                            default: return lead.status.replace('_', ' '); // Fallback
+                                        }
+                                    })()}
                                 </span>
 
-                                {lead.title.startsWith('Appeal:') && (
+                                {/* Category Pill (if exists) */}
+                                {(lead as any).category_id && (
                                     <span
-                                        className="badge rounded-pill px-3 py-1"
+                                        className="badge rounded-pill px-3 py-1 fw-bold border"
                                         style={{
-                                            background: '#0D6EFD',
-                                            color: 'white',
-                                            fontSize: '11px',
-                                            fontWeight: 'bold',
-                                            textTransform: 'uppercase',
-                                            letterSpacing: '0.5px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '4px'
+                                            background: 'transparent',
+                                            color: COLORS.textSecondary,
+                                            fontSize: '10px',
+                                            letterSpacing: '0.5px'
                                         }}
                                     >
-                                        <BadgeAlert size={12} /> Police Appeal
+                                        {(lead as any).category_id.replace('_', ' ').toUpperCase()}
                                     </span>
                                 )}
 
                                 <span className="text-muted">•</span>
-                                <span className="d-flex align-items-center gap-1" style={{ color: lead.isPinned ? 'rgba(255,255,255,0.6)' : COLORS.textSecondary }}>
+                                <span className="d-flex align-items-center gap-1" style={{ color: lead.isPinned ? 'white' : COLORS.textSecondary }}>
                                     <MapPin size={14} /> {lead.location}
-                                </span>
+                                </span >
                                 <span className="text-muted">•</span>
-                                <span className="d-flex align-items-center gap-1" style={{ color: lead.isPinned ? 'rgba(255,255,255,0.6)' : COLORS.textSecondary }}>
+                                <span className="d-flex align-items-center gap-1" style={{ color: lead.isPinned ? 'white' : COLORS.textSecondary }}>
                                     <Clock size={14} /> {lead.time || 'recent'}
                                 </span>
                             </div>
 
-                            {/* Reward Badge */}
-                            {lead.reward && (
-                                <div
-                                    className="badge px-3 py-2 d-flex align-items-center gap-2"
-                                    style={{
-                                        background: `linear-gradient(135deg, ${COLORS.golden} 0%, #FFA500 100%)`,
-                                        color: COLORS.navyBlue,
-                                        fontSize: '13px',
-                                        fontWeight: 'bold',
-                                        boxShadow: '0 2px 8px rgba(255, 215, 0, 0.3)'
-                                    }}
-                                >
-                                    <Award size={16} />
-                                    CASH BOUNTY: {lead.reward}
-                                </div>
-                            )}
+                            {/* Reward Badge (Moved to Image Overlay) */}
                         </div>
 
                         {/* Title & Preview */}
@@ -240,7 +235,11 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onClick, onReportAnony
                                         lineHeight: '1.4'
                                     }}
                                 >
-                                    {lead.isPinned && <span className="text-warning me-2">★ PINNED dossier:</span>}
+                                    {lead.isPinned && (
+                                        <span className={lead.priority === 'CRITICAL' ? "text-white me-2" : "text-warning me-2"}>
+                                            ★ PINNED dossier:
+                                        </span>
+                                    )}
                                     {lead.title}
                                 </h5>
                                 <p
@@ -252,12 +251,24 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onClick, onReportAnony
                                         overflow: 'hidden',
                                         fontSize: '15px',
                                         lineHeight: '1.6',
-                                        color: lead.isPinned ? 'rgba(255,255,255,0.8)' : COLORS.textSecondary
+                                        color: lead.isPinned
+                                            ? (lead.priority === 'CRITICAL' ? 'white' : 'rgba(255,255,255,0.9)')
+                                            : COLORS.textSecondary
                                     }}
                                 >
                                     {lead.description.split(/(\s+)/).map((part, i) =>
                                         part.startsWith('#') ? (
-                                            <span key={`hash-${i}`} className="fw-bold" style={{ color: lead.isPinned ? COLORS.golden : COLORS.navyBlue }}>{part}</span>
+                                            <span
+                                                key={`hash-${i}`}
+                                                className="fw-bold"
+                                                style={{
+                                                    color: lead.isPinned
+                                                        ? (lead.priority === 'CRITICAL' ? 'white' : COLORS.golden)
+                                                        : COLORS.navyBlue
+                                                }}
+                                            >
+                                                {part}
+                                            </span>
                                         ) : (
                                             <React.Fragment key={`text-${i}`}>{part}</React.Fragment>
                                         )
@@ -267,7 +278,7 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onClick, onReportAnony
                             {/* Thumbnail */}
                             {lead.image_url && (
                                 <div
-                                    className="rounded overflow-hidden flex-shrink-0"
+                                    className="rounded overflow-hidden flex-shrink-0 position-relative" // Added position-relative
                                     style={{
                                         width: '120px',
                                         height: '90px',
@@ -284,6 +295,22 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onClick, onReportAnony
                                             objectFit: 'cover'
                                         }}
                                     />
+                                    {/* Overlay Reward Badge */}
+                                    {lead.reward && (
+                                        <div
+                                            className="position-absolute bottom-0 start-0 w-100 text-center py-1 fw-bold text-uppercase d-flex align-items-center justify-content-center gap-1"
+                                            style={{
+                                                background: COLORS.wineRed, // Red Background
+                                                color: 'white', // White Text
+                                                fontSize: '10px',
+                                                letterSpacing: '0.5px',
+                                                backdropFilter: 'blur(2px)',
+                                                borderTop: `1px solid ${COLORS.golden}`
+                                            }}
+                                        >
+                                            <Award size={10} /> {lead.reward}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -336,10 +363,10 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onClick, onReportAnony
                             </button>
 
                             <span
-                                className="d-flex align-items-center gap-2 text-muted ms-auto"
+                                className="d-flex align-items-center gap-2 ms-auto"
                                 style={{ fontSize: '13px', color: lead.isPinned ? 'white' : COLORS.textSecondary }}
                             >
-                                <BadgeAlert size={14} /> {lead.responseCount || 0} People Responded • {lead.id * 12 + votes} Views
+                                <BadgeAlert size={14} /> {lead.responseCount || 0} People Responded • {lead.votes || 0} Upvotes
                             </span>
                         </div>
                     </div>
